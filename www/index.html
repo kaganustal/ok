@@ -1,0 +1,155 @@
+<!doctype html><html lang="tr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Büyücü – 4 tasarım × 3 seviye</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&display=swap">
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light;--bg:#eef1f6;--fg:#141a24;--mut:#566175;--pan:#fff;--ln:#cfd6e2;--acc:#7a3df0}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#0a0e14;--fg:#e9eef5;--mut:#93a0b2;--pan:#141a24;--ln:#2b3544;--acc:#b36bff}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#0a0e14;--fg:#e9eef5;--mut:#93a0b2;--pan:#141a24;--ln:#2b3544;--acc:#b36bff}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 system-ui,-apple-system,sans-serif;padding:12px 12px 24px}
+h1{font:700 20px/1.1 'Chakra Petch',system-ui,sans-serif;margin:4px 0 4px;letter-spacing:.03em}
+p{margin:0 0 10px;color:var(--mut)}
+#tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+#tabs button{font:700 15px 'Chakra Petch',system-ui,sans-serif;padding:10px 0;border-radius:8px;border:1px solid var(--ln);background:var(--pan);color:var(--fg)}
+#tabs button.on{border-color:var(--acc);box-shadow:0 0 0 2px var(--acc) inset;color:var(--acc)}
+#wrap{position:relative;max-width:520px;margin:0 auto;border-radius:12px;overflow:hidden;border:1px solid var(--ln);background:#0a0e14;aspect-ratio:4/5}
+canvas{display:block;width:100%;height:100%;touch-action:pan-y}
+.lb{position:absolute;transform:translate(-50%,0);font:700 12px 'Chakra Petch',system-ui,sans-serif;letter-spacing:.08em;color:#e9eef5;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:10px;white-space:nowrap;pointer-events:none}
+#info{max-width:520px;margin:10px auto 0;padding:12px;border:1px solid var(--ln);border-radius:10px;background:var(--pan)}
+#info b{font:700 17px 'Chakra Petch',system-ui,sans-serif}
+#info ul{margin:6px 0 0;padding-left:18px;color:var(--mut)}
+</style></head><body>
+<h1>Büyücü – Lv 20 / 40 / 60 tasarımları</h1>
+<p>Dört yön seç, üç seviyesini orijinalle yan yana gör. Sürükleyerek döndür. Orijinal model değişmedi.</p>
+<div id="tabs"></div>
+<div id="wrap"><canvas id="c"></canvas></div>
+<div id="info"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+var ORIG={s:0x5b2a9c,c:0xf2c230,g:0xffe066,t:0xffd23a,h:0x9b4dff};
+var DS={
+A:{k:'A',n:'Alev Arşimagı',s:0xa3241a,c:0xff7a2a,g:0xffc23a,t:0xffd23a,h:0xff5a1f,w:0xff6a1a,sp:'c',wn:4,f0:.5,fs:.28,
+ l:['Lv 20: kor omuzluklar, altın yaka, uzayan pelerin','Lv 40: alev dikenli taç, dönen kıvılcımlar, daha büyük asa halkası','Lv 60: kor kanatlar, alev tacı, parlayan halo ve yer rünü']},
+B:{k:'B',n:'Yıldız Bilgesi',s:0x4a2fb0,c:0x8f6bff,g:0xd9f0ff,t:0xffd23a,h:0xffe066,w:0xbfa6ff,sp:'o',wn:0,
+ l:['Lv 20: yıldız omuzluklar, altın yaka, işlemeli pelerin','Lv 40: takımyıldız tacı, tek dönen rün halkası, yörünge yıldızları','Lv 60: çift rün halkası, arkada rün diskleri, halo ve yer rünü']},
+C:{k:'C',n:'Kış Hükümdarı',s:0x2f6ea8,c:0xdff4ff,g:0x9ff0ff,t:0xeaf8ff,h:0x7fe8ff,w:0x9fe6ff,sp:'o',wn:5,f0:.3,fs:.24,
+ l:['Lv 20: buz omuzlukları, kürk yaka, gümüş işlemeli pelerin','Lv 40: kristal taç, yörüngede buz parçaları','Lv 60: kristal kanatlar, parlayan halo, kar rünü ve iri buz asası']},
+D:{k:'D',n:'Boşluk Sihirbazı',s:0x2a1840,c:0x8a22b8,g:0xff4dd8,t:0x9a7be0,h:0xff4dd8,w:0x6a2a9a,sp:'c',wn:3,f0:1.9,fs:.35,
+ l:['Lv 20: dikenli omuzluklar, gölge yaka, uzun pelerin','Lv 40: boynuzlu taç, yörüngede boşluk parçaları','Lv 60: sarkan gölge kanatları, magenta halo ve yer rünü']}
+};
+function build(d,t){
+ var G=new THREE.Group(),R=new THREE.Group();G.add(R);
+ var M=function(c,o){return new THREE.MeshStandardMaterial(Object.assign({color:c,flatShading:true,roughness:.6,metalness:.2},o||{}));};
+ var B=function(c){return new THREE.MeshBasicMaterial({color:c});};
+ var dark=M(0x1b2231),skin=M(0xe8c4a0,{roughness:.85,metalness:0});
+ var st=M(d.s,{metalness:.55,roughness:.42}),cl=M(d.c,{roughness:.85,metalness:0}),gd=M(d.t,{metalness:.75,roughness:.32}),gl=B(d.g),hl=B(d.h);
+ var Bx=function(w,h,e){return new THREE.BoxGeometry(w,h,e);},Cy=function(a,b,h,s){return new THREE.CylinderGeometry(a,b,h,s||6);},Co=function(r,h,s){return new THREE.ConeGeometry(r,h,s||5);},Sp=function(r,a,b){return new THREE.SphereGeometry(r,a||8,b||6);},Ic=function(r){return new THREE.IcosahedronGeometry(r,0);},Oc=function(r){return new THREE.OctahedronGeometry(r,0);},To=function(r,tu,a,b){return new THREE.TorusGeometry(r,tu,a||5,b||24);};
+ var SP=function(r,h){return d.sp==='o'?new THREE.OctahedronGeometry(r*1.3,0):Co(r,h,5);};
+ var P=function(g,m,x,y,z,par,rot){var q=new THREE.Mesh(g,m);q.position.set(x,y,z);if(rot)q.rotation.set(rot[0],rot[1],rot[2]);(par||R).add(q);return q;};
+ var N=function(par,x,y,z){var q=new THREE.Group();q.position.set(x,y,z);par.add(q);return q;};
+ var E={spin:[],orbs:[]};
+ /* --- orijinal büyücü gövdesi (aynı geometri) --- */
+ var lL=N(R,-.16,.62,0),lR=N(R,.16,.62,0);
+ [lL,lR].forEach(function(l){P(Bx(.2,.6,.24),dark,0,-.3,0,l);P(Bx(.22,.14,.34),st,0,-.57,.05,l);});
+ P(Cy(.28,.52,.95,9),st,0,.5,0);P(Cy(.53,.53,.07,9),gd,0,.06,0);
+ var T=N(R,0,.62,0);
+ P(Bx(.56,.62,.36),st,0,.31,0,T);P(Bx(.34,.1,.04),gl,0,.4,.19,T);P(Bx(.6,.12,.4),gd,0,.02,0,T);
+ P(Bx(.2,.16,.32),gd,-.38,.6,0,T);P(Bx(.2,.16,.32),gd,.38,.6,0,T);
+ var Hd=N(T,0,.7,0);
+ P(Sp(.2,6,5),skin,0,.12,.02,Hd);P(Cy(.42,.42,.04,10),st,0,.26,0,Hd);P(Co(.27,.8,8),st,0,.66,0,Hd,[-.15,0,0]);
+ P(Bx(.28,.06,.1),gl,0,.14,.2,Hd);P(Cy(.28,.28,.07,10),gd,0,.32,0,Hd);
+ var Cp=N(T,0,.58,-.2);P(Bx(.5,.85,.05),cl,0,-.42,-.02,Cp);
+ var aL=N(T,-.4,.55,0);P(Bx(.14,.5,.14),st,0,-.24,0,aL);
+ var aR=N(T,.4,.55,0);P(Bx(.14,.5,.14),st,0,-.24,0,aR);
+ P(Cy(.035,.04,1.7,6),dark,0,-.1,.2,aR);
+ var orb=P(Ic(.13),gl,0,.76,.2,aR);
+ /* --- seviye eklemeleri --- */
+ if(t>=1){
+  [-1,1].forEach(function(s){
+   P(Sp(.2,8,6),st,s*.42,.68,0,T);
+   P(SP(.1,t>=2?.55:.4),gd,s*.46,.88,0,T,[0,0,-s*.4]);
+  });
+  P(Cy(.3,.36,.1,9),gd,0,.72,0,T);
+  P(Ic(.07),gl,0,.33,.28,Hd);
+  P(Bx(.52,.3,.05),cl,0,-1.0,-.02,Cp);P(Bx(.54,.05,.07),gd,0,-1.16,-.02,Cp);P(Bx(.54,.05,.07),gd,0,-.85,-.02,Cp);
+  if(d.k==='C')for(var i=0;i<8;i++){var a=i*.785;P(Sp(.12,6,5),cl,Math.cos(a)*.3,.74,Math.sin(a)*.3,T);}
+  if(d.k==='D'){P(Bx(.5,.06,.06),B(d.g),0,-.42,.02,Cp);}
+ }
+ if(t>=2){
+  for(var j=0;j<6;j++){var a2=j*1.047,sx=Math.cos(a2),sz=Math.sin(a2);
+   P(SP(.07,.34),gd,sx*.38,.3,sz*.38,Hd,[sz*.4,0,-sx*.4]);}
+  P(Oc(.1),gl,0,.02,.23,T);
+  P(To(.17,.03,5,14),gd,0,.76,.2,aR,[0,0,0]);
+  var og=N(R,0,1.0,0);E.spin.push([og,1.3]);
+  for(var k=0;k<3+(t>=3?2:0);k++){var b=k*(6.283/(t>=3?5:3));var m=P(d.k==='C'||d.k==='D'?Oc(.11):Ic(.08),gl,Math.cos(b)*.95,Math.sin(k*2)*.25,Math.sin(b)*.95,og);}
+  if(d.k==='D')[-1,1].forEach(function(s){P(Co(.07,.62,5),M(0x15091f,{emissive:d.g,emissiveIntensity:.25}),s*.4,.55,0,Hd,[0,0,-s*.75]);});
+  if(d.k==='B'){var rg=N(R,0,1.0,0);E.spin.push([rg,.9]);P(To(1.1,.025,4,36),gl,0,0,0,rg,[1.25,0,0.3]);}
+ }
+ if(t>=3){
+  P(To(.42,.04,6,22),hl,0,1.55,-.38,T);
+  P(To(1.15,.03,4,40),hl,0,.05,0,R,[Math.PI/2,0,0]);P(To(.8,.03,4,32),hl,0,.05,0,R,[Math.PI/2,0,0]);
+  orb.scale.setScalar(1.45);
+  for(var q=0;q<4;q++){var qa=q*1.571+.78;P(SP(.04,.22),gd,Math.cos(qa)*.2,.76+Math.sin(qa)*.2,.2,aR,[0,0,-Math.cos(qa)*1.1+Math.sin(qa)*0]);}
+  var wm=M(d.w,{emissive:d.w,emissiveIntensity:.55,metalness:.1,roughness:.5});
+  [-1,1].forEach(function(s){
+   if(d.wn===0){var rd=N(T,s*.25,.5,-.3);E.spin.push([rd,s*.5]);
+    P(To(.62,.035,5,30),gl,0,0,0,rd,[1.57,0,0]);P(To(.42,.03,5,24),hl,0,0,0,rd,[1.57,0,0]);rd.rotation.set(0,.5*s,0);rd.userData.z=1;rd.position.x=s*.7;
+    return;}
+   for(var i=0;i<d.wn;i++){var L=1.0+i*.14;var pv=N(T,s*.18,.45,-.24);pv.rotation.set(-.35,0,-s*(d.f0+i*d.fs));
+    P(Co(.08,L,4),wm,0,L/2,0,pv);}
+  });
+  if(d.k==='A'){P(Co(.14,.5,6),hl,0,1.2,0,Hd);P(Co(.09,.34,5),gl,-.2,1.12,0,Hd,[0,0,.3]);P(Co(.09,.34,5),gl,.2,1.12,0,Hd,[0,0,-.3]);}
+ }
+ R.scale.setScalar(1.15*(1+.07*t));
+ var L=new THREE.PointLight(d.h,1.2,10,1.5);L.position.set(.4,2,.8);G.add(L);
+ E.cape=Cp;E.orb=orb;E.G=G;E.R=R;
+ return E;
+}
+var cv=document.getElementById('c'),wrap=document.getElementById('wrap');
+var ren=new THREE.WebGLRenderer({canvas:cv,antialias:true});ren.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+var sc=new THREE.Scene();
+var cam=new THREE.PerspectiveCamera(38,.8,.1,100);cam.position.set(0,4.6,14);cam.lookAt(0,3.6,0);
+sc.add(new THREE.HemisphereLight(0xcfe3f0,0x9c8458,.8));
+var dl=new THREE.DirectionalLight(0xfff1d0,1.1);dl.position.set(3,6,5);sc.add(dl);
+var gc=document.createElement('canvas');gc.width=gc.height=64;var gx=gc.getContext('2d'),gg=gx.createRadialGradient(32,32,0,32,32,32);gg.addColorStop(0,'rgba(255,255,255,.9)');gg.addColorStop(1,'rgba(255,255,255,0)');gx.fillStyle=gg;gx.fillRect(0,0,64,64);
+var gtex=new THREE.CanvasTexture(gc);
+var SL=[[-1.85,4.3,'ORİJİNAL',0],[1.85,4.3,'LV 20',1],[-1.85,0,'LV 40',2],[1.85,0,'LV 60',3]];
+var models=[],labels=[],yaw=0,cur='A';
+SL.forEach(function(s){var l=document.createElement('div');l.className='lb';l.textContent=s[2];wrap.appendChild(l);labels.push(l);});
+function show(key){
+ cur=key;models.forEach(function(m){sc.remove(m.G);});models=[];
+ SL.forEach(function(s,i){
+  var m=build(s[3]===0?ORIG:DS[key],s[3]);
+  m.G.position.set(s[0],s[1],0);
+  var gm=new THREE.Mesh(new THREE.CircleGeometry(1.7,32),new THREE.MeshBasicMaterial({map:gtex,color:s[3]===0?0x9b4dff:DS[key].h,transparent:true,opacity:.45,blending:THREE.AdditiveBlending,depthWrite:false}));
+  gm.rotation.x=-Math.PI/2;gm.position.y=.02;m.G.add(gm);
+  sc.add(m.G);models.push(m);
+ });
+ var d=DS[key];
+ document.getElementById('info').innerHTML='<b>'+d.n+'</b><ul>'+d.l.map(function(x){return '<li>'+x+'</li>';}).join('')+'</ul>';
+ [].forEach.call(document.querySelectorAll('#tabs button'),function(b){b.className=b.dataset.k===key?'on':'';});
+}
+var tabs=document.getElementById('tabs');
+Object.keys(DS).forEach(function(k){var b=document.createElement('button');b.textContent=k;b.dataset.k=k;b.onclick=function(){show(k);};tabs.appendChild(b);});
+function rs(){var w=wrap.clientWidth,h=wrap.clientHeight;ren.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();
+ SL.forEach(function(s,i){var v=new THREE.Vector3(s[0],s[1]-.3,0).project(cam);labels[i].style.left=((v.x+1)/2*100)+'%';labels[i].style.top=((1-v.y)/2*100)+'%';});}
+window.addEventListener('resize',rs);rs();
+var drag=null;
+cv.addEventListener('pointerdown',function(e){drag=e.clientX;});
+window.addEventListener('pointerup',function(){drag=null;});
+window.addEventListener('pointermove',function(e){if(drag!==null){yaw+=(e.clientX-drag)*.012;drag=e.clientX;}});
+var clk=new THREE.Clock();
+function loop(){
+ var dt=clk.getDelta(),t=clk.elapsedTime;yaw+=dt*.35;
+ models.forEach(function(m){
+  m.G.rotation.y=yaw;
+  m.spin=m.spin;E_spin(m,dt);
+  m.cape.rotation.x=Math.sin(t*2)*.05;
+  m.orb.position.y=.76+Math.sin(t*2.5)*.04;
+ });
+ ren.render(sc,cam);requestAnimationFrame(loop);
+}
+function E_spin(m,dt){m.spin.forEach(function(p){p[0].rotation.y+=p[1]*dt;});}
+show('A');loop();
+</script></body></html>
